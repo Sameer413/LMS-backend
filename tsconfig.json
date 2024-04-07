@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    /* Language and Environment */
+    "target": "es2016", /* Set the JavaScript language version for emitted 
+    /* Modules */
+    "module": "commonjs", /* Specify what module code is generated. */
+    /* Allow 'import x from y' when a module doesn't have a default export. */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    /* Type Checking */
+    "strict": true, /* Enable all strict type-checking options. */
+    /* Skip type checking .d.ts files that are included with TypeScript. */
+    "skipLibCheck": true, /* Skip type checking all .d.ts files. */
+    "allowSyntheticDefaultImports": true
+  },
+}

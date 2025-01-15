@@ -17,7 +17,7 @@ app.use(cors({
     credentials: true,
 }));
 
-app.use('/api', router);
+app.use('/api/v1', router);
 
 
 app.all('*', (req: Request, res: Response, next: NextFunction) => {

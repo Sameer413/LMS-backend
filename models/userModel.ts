@@ -4,6 +4,8 @@ const emailRegexPattern: RegExp = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2
 
 export interface IUser extends Document {
     _id: string;
+    refreshToken?: string;
+    username: string;
     name: string;
     email: string;
     password: string;
@@ -17,6 +19,11 @@ export interface IUser extends Document {
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
+    username: {
+        type: String,
+        required: true,
+        unique: true,
+    },
     name: {
         type: String,
         // required: [true, "Please enter your name"],
@@ -51,6 +58,9 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
             courseId: String,
         }
     ],
+    refreshToken: {
+        type: String
+    }
 }, {
     timestamps: true,
 });

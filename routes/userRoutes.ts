@@ -1,15 +1,10 @@
 import express from 'express';
-import { signIn, signOut, signUp, updatePassword, userDetail, deleteUser, updateProfile, getAllUsers } from '../controllers/userController';
+import { updatePassword, userDetail, deleteUser, updateProfile, getAllUsers } from '../controllers/userController';
 import { isAuthenticated } from '../middleware/auth';
 import multerUploads from '../middleware/multer';
 
 const userRouter = express.Router();
 
-userRouter.post('/sign-up', signUp);
-
-userRouter.post('/sign-in', signIn);
-
-userRouter.get('/sign-out', signOut);
 
 userRouter.delete('/user-delete', deleteUser);
 

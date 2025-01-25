@@ -1,26 +1,17 @@
-import Razorpay from "razorpay";
 import { NextFunction, Request, Response } from "express";
 import catchAsyncError from "../middleware/catchAsyncError";
 import ErrorHandler from "../utils/ErrorHandler";
-
-
-export const razorpay = new Razorpay({
-    key_id: "rzp_test_OGZ7M7SEQajqtU",
-    key_secret: "6HKTCVXInkJyKi8wzKMOizRv"
-});
+import razorPay from "../utils/razorPay";
 
 export const createPay = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { amount } = req.body;
-        const amountValue = amount.amount;
 
-        const option = {
-            amount: Number(amountValue) * 100,
-            currency: "INR"
-        }
-        console.log(option);
-
-        const order = await razorpay.orders.create(option);
+        const order = await razorPay.orders.create({
+            amount: amount * 100,
+            currency: 'INR',
+            receipt: `order_rcpid_${Date.now()}`
+        });
 
 
         res.status(200).json({
@@ -29,6 +20,8 @@ export const createPay = catchAsyncError(async (req: Request, res: Response, nex
         });
 
     } catch (error: any) {
+        console.log(error);
+
         return next(new ErrorHandler(error.message, 500));
     }
 });

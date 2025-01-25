@@ -2,8 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import catchAsyncError from "../middleware/catchAsyncError";
 import ErrorHandler from "../utils/ErrorHandler";
 import { CourseModel, ICourse } from "../models/courseModel";
-import cloudinary from "../utils/cloudinary";
-import { getDataUri } from "../utils/dataUri";
+import { deleteFile, generateFileName, storage, uploadFile } from "../utils/supabase";
+import fs from 'fs'
 
 // Create an course
 export const createCourse = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
@@ -20,17 +20,30 @@ export const createCourse = catchAsyncError(async (req: Request, res: Response, 
             prerequisites
         } = req.body;
 
-        const thumbnail: any = req.body.thumbnail;
+        const thumbnail = req.file;
+
+        const parsedBenefits = Array.isArray(benefits) ? benefits : JSON.parse(benefits)
+        const parsedPrerequisites = Array.isArray(prerequisites) ? benefits : JSON.parse(prerequisites)
 
         if (!name || !description || !categories || !price || !estimatedPrice || !thumbnail || !tags || !benefits || !prerequisites) {
             return next(new ErrorHandler("Please enter all fields!", 400));
         }
 
-        // const fileUri = await getDataUri(thumbnail);
+        const thumbnailBuffer = fs.readFileSync(thumbnail?.path!)
 
-        const result = await cloudinary.uploader.upload(thumbnail || '', {
-            folder: 'courseThumbnail'
+        const { success, error, url, path } = await uploadFile({
+            bucket: 'thumbnails',
+            // fileName: `${thumbnail?.filename.split('.')[0]}-${name.replace(/\s+/g, '_').toLowerCase()}.${thumbnail?.filename.split('.').pop()}`,\
+            fileName: generateFileName(thumbnail?.filename, name),
+            file: thumbnailBuffer,
+            mimeType: thumbnail?.mimetype!
         })
+
+        fs.unlinkSync(thumbnail?.path!)
+
+        if (error) {
+            return next(new ErrorHandler('Failed while uploading a file', 400))
+        }
 
         const course = await CourseModel.create({
             userId: req.user?._id,
@@ -40,12 +53,12 @@ export const createCourse = catchAsyncError(async (req: Request, res: Response, 
             price,
             estimatedPrice,
             thumbnail: {
-                public_id: result.public_id,
-                url: result.secure_url
+                path: path,
+                url: url
             },
             tags,
-            benefits: benefits,
-            prerequisites: prerequisites
+            benefits: { ...parsedBenefits },
+            prerequisites: { ...parsedPrerequisites }
         });
 
         res.status(200).json({
@@ -113,7 +126,11 @@ export const deleteCourse = catchAsyncError(async (req: Request, res: Response, 
             return next(new ErrorHandler("Course not found!", 404));
         }
 
-        await cloudinary.uploader.destroy(course.thumbnail.public_id || '');
+        const { data } = await deleteFile({ bucket: 'thumbnails', publicUrl: course.thumbnail.url });
+
+        if (!data) {
+            return next(new ErrorHandler("Error while deleting the data from the storage", 400));
+        }
 
         await course.deleteOne();
 
@@ -122,7 +139,6 @@ export const deleteCourse = catchAsyncError(async (req: Request, res: Response, 
             message: "Course deleted successfully!",
             course,
         });
-
 
     } catch (error: any) {
         return next(new ErrorHandler(error.message, 400));
@@ -133,7 +149,13 @@ export const deleteCourse = catchAsyncError(async (req: Request, res: Response, 
 export const getCourse = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
     try {
 
-        const course = await CourseModel.findById(req.params.id as string).select("-courseData.links.url");
+        const courseId = req.params.id as string;
+
+        if (!courseId) {
+            return next(new ErrorHandler("id not provided in params", 404));
+        }
+
+        const course: ICourse = await CourseModel.findById(req.params.id as string).select("-courseData.links.url -userId -thumbnail.path");
 
         if (!course) {
             return next(new ErrorHandler("Course not found!", 404));
@@ -151,8 +173,8 @@ export const getCourse = catchAsyncError(async (req: Request, res: Response, nex
 // Find multiple courses
 export const getCourses = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
     try {
-
-        const { course_name } = req.query;
+        // Filtering using some of the additional queries
+        const { course_name, categories } = req.query;
 
         const query: any = {};
 
@@ -162,8 +184,13 @@ export const getCourses = catchAsyncError(async (req: Request, res: Response, ne
                 $options: 'i',
             }
         }
+        // if(categories){
+        //     query['categories'] = {
 
-        const courses = await CourseModel.find(query).select("-courseData.links -reviews -benefits -prerequisites");
+        //     }
+        // }
+
+        const courses = await CourseModel.find(query).select("-courseData -reviews -benefits -prerequisites -demoUrl");
 
         if (!courses) {
             return next(new ErrorHandler("Course not found!", 404));
@@ -178,98 +205,6 @@ export const getCourses = catchAsyncError(async (req: Request, res: Response, ne
     }
 });
 
-// Add course data in a perticular course
-export const addCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const courseId = req.params.id;
-
-        const data = req.body;
-
-        const course = await CourseModel.findById(courseId);
-
-        if (!course) {
-            return next(new ErrorHandler("Course not found!", 404));
-        }
-
-        const courseData = await course.courseData.push(data);
-
-        await course?.save();
-
-        res.status(200).json({
-            success: true,
-            message: "Course data added successfully!",
-            courseData
-        });
-
-    } catch (error: any) {
-        return next(new ErrorHandler(error.message, 400));
-    }
-});
-
-// Delete course data in a perticular course
-export const deleteCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const courseId = req.params.id;
-        const courseDataId = req.body.id;
-
-        const course = await CourseModel.findById(courseId);
-
-        if (!course) {
-            return next(new ErrorHandler("Course not found!", 404));
-        }
-
-        const courseDataIndex = await course.courseData.findIndex(course => course._id.toString() === courseDataId);
-
-        if (courseDataIndex === -1) {
-            return next(new ErrorHandler("CourseData not found!", 400));
-        }
-
-        const deletedCourseData = course.courseData.splice(courseDataIndex, 1);
-
-        await course.save();
-
-        res.status(200).json({
-            success: true,
-            deletedCourseData
-        });
-
-    } catch (error: any) {
-        return next(new ErrorHandler(error.message, 400));
-    }
-});
-
-// Not tested need to tested some complex issues need to analyzed or fixeds
-// Updates course data in a perticular course
-export const updateCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const courseId = req.params.id;
-        const courseDataId = req.body.id;
-        const data = req.body;
-
-        const course = await CourseModel.findById(courseId);
-
-        if (!course) {
-            return next(new ErrorHandler("Course not found!", 404));
-        }
-
-        const courseDataIndex = await course.courseData.findIndex(course => course._id.toString() === courseDataId);
-
-        if (courseDataIndex === -1) {
-            return next(new ErrorHandler("CourseData not found!", 400));
-        }
-
-        course.courseData[courseDataIndex] = { ...course.courseData[courseDataIndex], ...data };
-
-        await course.save();
-
-        res.status(200).json({
-            success: true,
-        });
-
-    } catch (error: any) {
-        return next(new ErrorHandler(error.message, 400));
-    }
-});
 
 // Show all admin courses
 export const getAdminCourses = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
@@ -369,96 +304,96 @@ export const addReplyToReview = catchAsyncError(async (req: Request, res: Respon
     }
 });
 
-// Add Question to an Course Data
-export const addQueToCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+// // Add Question to an Course Data
+// export const addQueToCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
 
-    try {
+//     try {
 
-        const courseId = req.params.id;
-        const { question, courseDataId } = req.body;
-        const userId = req.user?._id;
+//         const courseId = req.params.id;
+//         const { question, courseDataId } = req.body;
+//         const userId = req.user?._id;
 
 
-        const course = await CourseModel.findById(courseId);
+//         const course = await CourseModel.findById(courseId);
 
-        if (!course) {
-            return next(new ErrorHandler("Course not found!", 404));
-        }
+//         if (!course) {
+//             return next(new ErrorHandler("Course not found!", 404));
+//         }
 
-        const courseDataIndex = await course.courseData.findIndex((course) => course._id.toString() === courseDataId);
+//         const courseDataIndex = await course.courseData.findIndex((course) => course._id.toString() === courseDataId);
 
-        if (courseDataIndex < 0) {
-            return next(new ErrorHandler("Course Data not found!", 404));
-        }
+//         if (courseDataIndex < 0) {
+//             return next(new ErrorHandler("Course Data not found!", 404));
+//         }
 
-        const questions: any = {
-            userId: userId,
-            question: question,
-        }
+//         const questions: any = {
+//             userId: userId,
+//             question: question,
+//         }
 
-        course.courseData[courseDataIndex].questions.push(questions);
+//         course.courseData[courseDataIndex].questions.push(questions);
 
-        await course?.save();
+//         await course?.save();
 
-        res.status(200).json({
-            success: true,
-            message: "Question added successfully!"
-        });
+//         res.status(200).json({
+//             success: true,
+//             message: "Question added successfully!"
+//         });
 
-    } catch (error: any) {
-        return next(new ErrorHandler(error.message, 500));
-    }
+//     } catch (error: any) {
+//         return next(new ErrorHandler(error.message, 500));
+//     }
 
-});
+// });
 
-// Add Question reply to an courseData
-export const addQueReplyToCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+// // Add Question reply to an courseData
+// export const addQueReplyToCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
 
-    try {
+//     try {
 
-        const courseId = req.params.id;
-        const { answer, courseDataId, questionId } = req.body;
-        const userId = req.user?._id;
+//         const courseId = req.params.id;
+//         const { answer, courseDataId, questionId } = req.body;
+//         const userId = req.user?._id;
 
-        if (!answer) {
-            return next(new ErrorHandler("Fill the answer field!", 400));
-        }
+//         if (!answer) {
+//             return next(new ErrorHandler("Fill the answer field!", 400));
+//         }
 
-        const course = await CourseModel.findById(courseId);
+//         const course = await CourseModel.findById(courseId);
 
-        if (!course) {
-            return next(new ErrorHandler("Course not found!", 404));
-        }
+//         if (!course) {
+//             return next(new ErrorHandler("Course not found!", 404));
+//         }
 
-        const courseDataIndex = await course.courseData.findIndex((course) => course._id.toString() === courseDataId);
+//         const courseDataIndex = await course.courseData.findIndex((course) => course._id.toString() === courseDataId);
 
-        if (courseDataIndex < 0) {
-            return next(new ErrorHandler("Course Data not found!", 404));
-        }
+//         if (courseDataIndex < 0) {
+//             return next(new ErrorHandler("Course Data not found!", 404));
+//         }
 
-        const answerData: any = {
-            userId: userId,
-            answer: answer,
-        }
+//         const answerData: any = {
+//             userId: userId,
+//             answer: answer,
+//         }
 
-        const questionIndex = await course.courseData[courseDataIndex].questions.findIndex((que) => que._id.toString() === questionId);
+//         const questionIndex = await course.courseData[courseDataIndex].questions.findIndex((que) => que._id.toString() === questionId);
 
-        if (questionIndex < 0) {
-            return next(new ErrorHandler("Question not found!", 404));
-        }
+//         if (questionIndex < 0) {
+//             return next(new ErrorHandler("Question not found!", 404));
+//         }
 
-        course.courseData[courseDataIndex].questions[questionIndex].questionReplies?.push(answerData);
+//         course.courseData[courseDataIndex].questions[questionIndex].questionReplies?.push(answerData);
 
-        await course?.save();
+//         await course?.save();
 
-        res.status(200).json({
-            success: true,
-            message: "Question reply added successfully!"
-        });
+//         res.status(200).json({
+//             success: true,
+//             message: "Question reply added successfully!"
+//         });
 
-    } catch (error: any) {
-        return next(new ErrorHandler(error.message, 500));
-    }
+//     } catch (error: any) {
+//         return next(new ErrorHandler(error.message, 500));
+//     }
 
-});
+// });
 

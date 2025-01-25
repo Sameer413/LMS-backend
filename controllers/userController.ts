@@ -12,6 +12,7 @@ interface updatePasswordBody {
     newPassword: string;
     confirmPassword: string;
 }
+
 export const updatePassword = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { password, newPassword, confirmPassword } = req.body as updatePasswordBody;
@@ -21,12 +22,11 @@ export const updatePassword = catchAsyncError(async (req: Request, res: Response
         }
 
         const user: IUser = await userModel.findById(req.user?._id).select("+password");
-
         if (!user) {
             return next(new ErrorHandler('User not found!', 404));
         }
-        const isMatch = await bcrypt.compare(password, user?.password || '');
 
+        const isMatch = await bcrypt.compare(password, user?.password || '');
         if (!isMatch) {
             return next(new ErrorHandler("Enter correct password!", 400));
         }

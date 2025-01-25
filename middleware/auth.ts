@@ -2,7 +2,7 @@ require('dotenv').config();
 import { Request, Response, NextFunction } from "express";
 import catchAsyncError from "./catchAsyncError";
 import ErrorHandler from "../utils/ErrorHandler";
-import jwt from "jsonwebtoken";
+import jwt, { verify } from "jsonwebtoken";
 import { IUser, userModel } from "../models/userModel";
 
 declare module 'express' {
@@ -11,19 +11,38 @@ declare module 'express' {
     }
 }
 
-export const isAuthenticated = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
-    const { token } = req.cookies;
+export const isAuthenticated = catchAsyncError(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const access_token = await req.cookies.access_token as string;
 
-    if (!token) {
-        return next(new ErrorHandler('Please Login to access', 400));
+        if (!access_token) {
+            return next(
+                new ErrorHandler("Access token expired", 400)
+            );
+        }
+
+        const decoded: any = await verify(
+            access_token,
+            process.env.ACCESS_TOKEN_SECRET!! as string
+        );
+
+        if (!decoded) {
+            return next(new ErrorHandler("access token is not valid", 400));
+        }
+
+        const user = await userModel.findById(decoded._id).select("-password -refreshToken");
+
+        if (!user) {
+            return next(
+                new ErrorHandler("Please login to access this resource", 400)
+            );
+        }
+
+        req.user = user;
+
+        next();
     }
-
-    const decodedData: any = jwt.verify(token, process.env.JWT_SECRET || '');
-
-    req.user = await userModel.findById(decodedData.id);
-
-    next();
-});
+);
 
 
 export const isAdmin = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {

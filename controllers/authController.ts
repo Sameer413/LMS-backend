@@ -6,6 +6,7 @@ import ErrorHandler from "../utils/ErrorHandler";
 import { NextFunction, Request, Response } from "express";
 import { userModel } from "../models/userModel";
 import bcrypt from "bcryptjs";
+import { JwtPayload, verify } from "jsonwebtoken";
 
 
 
@@ -28,7 +29,7 @@ export const signUp = catchAsyncError(async (req: Request, res: Response, next: 
 
         const existUser = await userModel.findOne({
             $or: [
-                { email }, { password }
+                { email }, { username }
             ]
         });
 
@@ -96,15 +97,16 @@ export const signIn = catchAsyncError(async (req: Request, res: Response, next: 
 
         res.status(200)
             .cookie('access_token', accessToken, {
-                expires: new Date(Date.now() + 5 * 60 * 60 * 1000),
-                httpOnly: true,
-                secure: true,
-                sameSite: 'none'
+                // expires: new Date(Date.now() + 3 * 60 * 1000),
+                expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+                // httpOnly: true,
+                // secure: true,
+                // sameSite: 'none'
             }).cookie('refresh_token', refreshToken, {
-                httpOnly: true,
-                sameSite: 'strict',
-                secure: true,
                 expires: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+                // httpOnly: true,
+                // sameSite: 'strict',
+                // secure: true,
             })
             .json({
                 success: true,
@@ -148,3 +150,68 @@ export const signOut = catchAsyncError(async (req: Request, res: Response, next:
         return next(new ErrorHandler(error.message, 500));
     }
 });
+
+export const refreshToken = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+    const refresh_token = req.cookies.refresh_token || req.body.refresh_token;
+
+    if (!refresh_token) {
+        return next(new ErrorHandler("Unauthorized request", 401));
+    }
+
+    try {
+        const decoded = verify(
+            refresh_token,
+            process.env.REFRESH_TOKEN_SECRET!
+        ) as JwtPayload;
+
+        // Ensure decoded payload contains the correct id property
+        const userId = decoded._id;
+
+        if (!userId) {
+            return next(new ErrorHandler("Invalid token", 401));
+        }
+
+        const user = await userModel.findById(userId);
+
+        if (!user) {
+            return next(
+                new ErrorHandler("Please log in to access this resource", 400)
+            );
+        }
+
+        // Generate new access and refresh tokens
+        const accessToken = generateAccessToken({ _id: user._id as string });
+        const newRefreshToken = generateRefreshToken({ _id: user._id as string });
+
+        await user.updateOne({
+            refresh_token: newRefreshToken,
+        });
+        await user.save();
+
+        // Set cookies with new tokens
+        res.cookie("access_token", accessToken, {
+            // httpOnly: true,
+            // sameSite: "strict",
+            // maxAge: 3 * 60 * 1000
+            maxAge: 2 * 24 * 60 * 60 * 1000
+        });
+        res.cookie("refresh_token", newRefreshToken, {
+            // httpOnly: true,
+            // sameSite: "strict",
+            maxAge: 2 * 24 * 60 * 60 * 1000
+        });
+
+        // // Send response with new tokens
+        // res.status(200).json({
+        //     success: true,
+        //     accessToken,
+        //     refreshToken: newRefreshToken,
+        // });
+
+        next()
+    } catch (error: any) {
+        return next(
+            new ErrorHandler("Token verification failed. Please log in again.", 401)
+        );
+    }
+})

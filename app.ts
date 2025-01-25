@@ -13,7 +13,7 @@ app.use(urlencoded({
 }));
 
 app.use(cors({
-    origin: ['http://localhost:3000'],
+    origin: ['http://localhost:3000', '*'],
     credentials: true,
 }));
 
@@ -21,6 +21,10 @@ app.use('/api/v1', router);
 
 
 app.all('*', (req: Request, res: Response, next: NextFunction) => {
+    res.status(200).json({
+        success: true,
+        message: "yooo "
+    })
     const error = new Error(`Route ${req.originalUrl} not found`) as any;
     error.statusCode = 404;
     next(error);

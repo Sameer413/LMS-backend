@@ -1,9 +1,10 @@
+import { Types } from "mongoose";
 import { Schema, Document } from "mongoose";
 
 export interface IComment extends Document {
     userId: string;
     question: string;
-    questionReplies?: IComment[];
+    questionReplies?: Types.DocumentArray<IComment>;
 }
 
 const commentSchema = new Schema<IComment>({

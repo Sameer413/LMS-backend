@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { ILink, linkSchema } from "./linkModel";
 import { IComment, commentSchema } from "./commentModel"
 
@@ -15,7 +15,7 @@ export interface ICourseData extends Document {
     videoLength: number;
     links?: ILink[];
     suggestion: string;
-    questions?: IComment[];
+    questions?: Types.DocumentArray<IComment>;
 }
 
 const courseDataSchema = new Schema<ICourseData>({

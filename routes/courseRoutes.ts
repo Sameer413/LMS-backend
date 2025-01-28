@@ -1,5 +1,5 @@
 import express from 'express';
-import { createCourse, updateCourse, deleteCourse, getCourse, getCourses, getAdminCourses, addReviewToCourse, addReplyToReview } from '../controllers/courseController';
+import { createCourse, updateCourse, deleteCourse, getCourse, getCourses, getAdminCourses, addReviewToCourse, addReplyToReview, addQueToCourseData, addQueReplyToCourseData } from '../controllers/courseController';
 import { isAuthenticated } from '../middleware/auth';
 import { uploadImageMulter } from '../middleware/multer';
 import { refreshToken } from '../controllers/authController';
@@ -18,12 +18,14 @@ courseRouter.get('/courses', getCourses);
 
 courseRouter.get('/admin-courses', isAuthenticated, getAdminCourses);
 
-courseRouter.post('/add-review', isAuthenticated, addReviewToCourse);
+courseRouter.post('/add-review/:courseId', isAuthenticated, addReviewToCourse); // done
 
-courseRouter.post('/add-review-reply', isAuthenticated, addReplyToReview);
+courseRouter.post('/add-review-reply/:courseId', isAuthenticated, addReplyToReview); // done
 
-// courseRouter.post('/add-que-course-data/:id', isAuthenticated, addQueToCourseData);
+courseRouter.post('/add-que-course-data/:courseDataId', isAuthenticated, addQueToCourseData); // done
 
-// courseRouter.post('/add-que-reply-course-data/:id', isAuthenticated, addQueReplyToCourseData);
+courseRouter.post('/add-que-reply-course-data/:courseDataId', isAuthenticated, addQueReplyToCourseData); // done
+
+// later feature like delete update que/replies etc.
 // Roles need to be admin moderator and the user
 export default courseRouter;

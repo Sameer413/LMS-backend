@@ -4,6 +4,7 @@ import ErrorHandler from "../utils/ErrorHandler";
 import { CourseModel, ICourse } from "../models/courseModel";
 import { deleteFile, generateFileName, storage, uploadFile } from "../utils/supabase";
 import fs from 'fs'
+import { CourseDataModel } from "../models/courseDataModel";
 
 // Create an course
 export const createCourse = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
@@ -232,8 +233,13 @@ export const addReviewToCourse = catchAsyncError(async (req: Request, res: Respo
 
         const { rating, comment } = req.body;
         const userId = req.user?._id as string;
-        // Temporary its body then will shift to the params for the course
-        const course = await CourseModel.findById(req.body.id);
+        const courseId = req.params.courseId;
+
+        if (!courseId) {
+            return next(new ErrorHandler("Course id not provided", 400));
+        }
+
+        const course = await CourseModel.findById(courseId);
 
         if (!course) {
             return next(new ErrorHandler("Course not found!", 404));
@@ -248,6 +254,7 @@ export const addReviewToCourse = catchAsyncError(async (req: Request, res: Respo
         course.reviews.push(review);
 
         let avg = 0;
+
         course?.reviews.forEach((rev: any) => {
             avg += rev.rating;
         });
@@ -273,9 +280,14 @@ export const addReplyToReview = catchAsyncError(async (req: Request, res: Respon
     try {
 
         const { comment } = req.body;
-        const { courseId, reviewId } = req.body;
+        const { courseId } = req.params;
+        const { reviewId } = req.body;
 
         const course = await CourseModel.findById(courseId);
+
+        if (course?.userId.toString() !== req.user?._id.toString()) {
+            return next(new ErrorHandler('Other user can not reply', 400));
+        }
 
         if (!course) {
             return next(new ErrorHandler("Course not found!", 404));
@@ -305,95 +317,81 @@ export const addReplyToReview = catchAsyncError(async (req: Request, res: Respon
 });
 
 // // Add Question to an Course Data
-// export const addQueToCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+export const addQueToCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
 
-//     try {
+    try {
 
-//         const courseId = req.params.id;
-//         const { question, courseDataId } = req.body;
-//         const userId = req.user?._id;
+        const { courseDataId } = req.params;
+        const { question } = req.body;
+        const userId = req.user?._id;
 
+        const courseData = await CourseDataModel.findById(courseDataId);
 
-//         const course = await CourseModel.findById(courseId);
+        if (!courseData) {
+            return next(new ErrorHandler("Course data not found!", 404));
+        }
 
-//         if (!course) {
-//             return next(new ErrorHandler("Course not found!", 404));
-//         }
+        const questionData: any = {
+            userId: userId,
+            question: question,
+        }
 
-//         const courseDataIndex = await course.courseData.findIndex((course) => course._id.toString() === courseDataId);
+        courseData.questions?.push(questionData)
 
-//         if (courseDataIndex < 0) {
-//             return next(new ErrorHandler("Course Data not found!", 404));
-//         }
+        await courseData?.save();
 
-//         const questions: any = {
-//             userId: userId,
-//             question: question,
-//         }
+        res.status(200).json({
+            success: true,
+            message: "Question added successfully!"
+        });
 
-//         course.courseData[courseDataIndex].questions.push(questions);
+    } catch (error: any) {
+        return next(new ErrorHandler(error.message, 500));
+    }
 
-//         await course?.save();
+});
 
-//         res.status(200).json({
-//             success: true,
-//             message: "Question added successfully!"
-//         });
+// Add Question reply to an courseData
+export const addQueReplyToCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
 
-//     } catch (error: any) {
-//         return next(new ErrorHandler(error.message, 500));
-//     }
+    try {
+        const { courseDataId } = req.params;
+        const { answer, questionId } = req.body;
+        const userId = req.user?._id;
 
-// });
+        if (!answer) {
+            return next(new ErrorHandler("Fill the answer field!", 400));
+        }
 
-// // Add Question reply to an courseData
-// export const addQueReplyToCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+        const courseData = await CourseDataModel.findById(courseDataId);
 
-//     try {
+        if (!courseData) {
+            return next(new ErrorHandler("Course data not found!", 404));
+        }
 
-//         const courseId = req.params.id;
-//         const { answer, courseDataId, questionId } = req.body;
-//         const userId = req.user?._id;
+        const questionIndex = await courseData.questions?.findIndex((question) => question._id.toString() === questionId.toString())
 
-//         if (!answer) {
-//             return next(new ErrorHandler("Fill the answer field!", 400));
-//         }
+        if (questionIndex === undefined || questionIndex < 0) {
+            return next(new ErrorHandler("Question index not found!", 404));
+        }
 
-//         const course = await CourseModel.findById(courseId);
+        const answerData: any = {
+            userId: userId,
+            answer: answer,
+        }
 
-//         if (!course) {
-//             return next(new ErrorHandler("Course not found!", 404));
-//         }
+        const question = courseData.questions && courseData.questions[questionIndex]
 
-//         const courseDataIndex = await course.courseData.findIndex((course) => course._id.toString() === courseDataId);
+        question?.questionReplies?.push(answerData)
 
-//         if (courseDataIndex < 0) {
-//             return next(new ErrorHandler("Course Data not found!", 404));
-//         }
+        await courseData?.save();
 
-//         const answerData: any = {
-//             userId: userId,
-//             answer: answer,
-//         }
+        res.status(200).json({
+            success: true,
+            message: "Question reply added successfully!"
+        });
 
-//         const questionIndex = await course.courseData[courseDataIndex].questions.findIndex((que) => que._id.toString() === questionId);
-
-//         if (questionIndex < 0) {
-//             return next(new ErrorHandler("Question not found!", 404));
-//         }
-
-//         course.courseData[courseDataIndex].questions[questionIndex].questionReplies?.push(answerData);
-
-//         await course?.save();
-
-//         res.status(200).json({
-//             success: true,
-//             message: "Question reply added successfully!"
-//         });
-
-//     } catch (error: any) {
-//         return next(new ErrorHandler(error.message, 500));
-//     }
-
-// });
-
+    } catch (error: any) {
+        return next(new ErrorHandler(error.message, 500));
+    }
+});

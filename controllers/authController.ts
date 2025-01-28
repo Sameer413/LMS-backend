@@ -202,13 +202,13 @@ export const refreshToken = catchAsyncError(async (req: Request, res: Response, 
         });
 
         // // Send response with new tokens
-        // res.status(200).json({
-        //     success: true,
-        //     accessToken,
-        //     refreshToken: newRefreshToken,
-        // });
+        res.status(200).json({
+            success: true,
+            accessToken,
+            refreshToken: newRefreshToken,
+        });
 
-        next()
+        // next()
     } catch (error: any) {
         return next(
             new ErrorHandler("Token verification failed. Please log in again.", 401)

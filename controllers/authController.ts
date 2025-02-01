@@ -97,8 +97,8 @@ export const signIn = catchAsyncError(async (req: Request, res: Response, next: 
 
         res.status(200)
             .cookie('access_token', accessToken, {
-                // expires: new Date(Date.now() + 3 * 60 * 1000),
-                expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+                expires: new Date(Date.now() + 3 * 60 * 1000),
+                // expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
                 // httpOnly: true,
                 // secure: true,
                 // sameSite: 'none'
@@ -111,10 +111,9 @@ export const signIn = catchAsyncError(async (req: Request, res: Response, next: 
             .json({
                 success: true,
                 message: `Welcome Back ${user?.name || 'Bro'}`,
-                data: {
-                    accessToken,
-                    refreshToken,
-                }
+                user,
+                accessToken,
+                refreshToken,
             });
 
         // sendToken(res, user, `Welcome Back ${user?.name || 'Bro'}`);

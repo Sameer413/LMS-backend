@@ -14,6 +14,8 @@ userRouter.put('/update-password', isAuthenticated, updatePassword);
 
 userRouter.put('/update-user', isAuthenticated, uploadImageMulter.single('image'), updateProfile)
 
-userRouter.get('/users-all', isAuthenticated, getAllUsers);
+userRouter.get('/users-all', getAllUsers);
+
+userRouter.put('/user-role-update')
 
 export default userRouter;

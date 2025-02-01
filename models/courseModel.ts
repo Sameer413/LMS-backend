@@ -3,7 +3,7 @@ import { courseDataSchema } from "./courseDataModel";
 import { reviewSchema, IReview } from "./reviewModel";
 
 export interface ICourse extends Document {
-    userId: Schema.Types.ObjectId;
+    userId: string;
     name: string;
     description?: string;
     categories: string;
@@ -26,7 +26,7 @@ export interface ICourse extends Document {
 
 const courseSchema = new Schema<ICourse>(
     {
-        userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        userId: { type: String, ref: "User", required: true },
         name: { type: String, required: true },
         description: { type: String },
         categories: { type: String, required: true },
@@ -36,7 +36,7 @@ const courseSchema = new Schema<ICourse>(
             path: { type: String },
             url: { type: String },
         },
-        tags: { type: String, required: true },
+        tags: { type: String },
         level: { type: String, required: true },
         demoUrl: { type: String },
         benefits: [{ title: String }],

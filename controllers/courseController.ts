@@ -9,7 +9,6 @@ import { CourseDataModel } from "../models/courseDataModel";
 // Create an course
 export const createCourse = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // File upload needs to be fixed
         const {
             name,
             description,
@@ -18,33 +17,22 @@ export const createCourse = catchAsyncError(async (req: Request, res: Response, 
             estimatedPrice,
             tags,
             benefits,
-            prerequisites
+            prerequisites,
+            path,
+            url,
+            level
         } = req.body;
+        console.log(req.body);
 
-        const thumbnail = req.file;
+        // console.log(name, " ", description, " ", price, " ", estimatedPrice, " ", path, " ", url, " ", benefits, " ", prerequisites);
 
-        const parsedBenefits = Array.isArray(benefits) ? benefits : JSON.parse(benefits)
-        const parsedPrerequisites = Array.isArray(prerequisites) ? benefits : JSON.parse(prerequisites)
-
-        if (!name || !description || !categories || !price || !estimatedPrice || !thumbnail || !tags || !benefits || !prerequisites) {
+        // Later add categories in validation
+        if (!name || !description || !path || !url || !benefits || !prerequisites) {
             return next(new ErrorHandler("Please enter all fields!", 400));
         }
 
-        const thumbnailBuffer = fs.readFileSync(thumbnail?.path!)
+        console.log(name, " ", description, " ", price, " ", estimatedPrice, " ", path, " ", url, " ", benefits, " ", prerequisites);
 
-        const { success, error, url, path } = await uploadFile({
-            bucket: 'thumbnails',
-            // fileName: `${thumbnail?.filename.split('.')[0]}-${name.replace(/\s+/g, '_').toLowerCase()}.${thumbnail?.filename.split('.').pop()}`,\
-            fileName: generateFileName(thumbnail?.filename, name),
-            file: thumbnailBuffer,
-            mimeType: thumbnail?.mimetype!
-        })
-
-        fs.unlinkSync(thumbnail?.path!)
-
-        if (error) {
-            return next(new ErrorHandler('Failed while uploading a file', 400))
-        }
 
         const course = await CourseModel.create({
             userId: req.user?._id,
@@ -57,9 +45,10 @@ export const createCourse = catchAsyncError(async (req: Request, res: Response, 
                 path: path,
                 url: url
             },
+            level: level,
             tags,
-            benefits: { ...parsedBenefits },
-            prerequisites: { ...parsedPrerequisites }
+            benefits: benefits,
+            prerequisites: prerequisites
         });
 
         res.status(200).json({
@@ -72,6 +61,73 @@ export const createCourse = catchAsyncError(async (req: Request, res: Response, 
         return next(new ErrorHandler(error.message, 400));
     }
 });
+// export const createCourse = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         // File upload needs to be fixed
+//         const {
+//             name,
+//             description,
+//             categories,
+//             price,
+//             estimatedPrice,
+//             tags,
+//             benefits,
+//             prerequisites
+//         } = req.body;
+
+
+//         const thumbnail = req.file;
+//         console.log(thumbnail);
+
+//         const parsedBenefits = Array.isArray(benefits) ? benefits : JSON.parse(benefits)
+//         const parsedPrerequisites = Array.isArray(prerequisites) ? benefits : JSON.parse(prerequisites)
+//         // Later add categories in validation
+//         if (!name || !description || !price || !estimatedPrice || !thumbnail || !benefits || !prerequisites) {
+//             return next(new ErrorHandler("Please enter all fields!", 400));
+//         }
+
+//         const thumbnailBuffer = fs.readFileSync(thumbnail?.path!)
+
+//         const { success, error, url, path } = await uploadFile({
+//             bucket: 'thumbnails',
+//             // fileName: `${thumbnail?.filename.split('.')[0]}-${name.replace(/\s+/g, '_').toLowerCase()}.${thumbnail?.filename.split('.').pop()}`,\
+//             fileName: generateFileName(thumbnail?.filename, name),
+//             file: thumbnailBuffer,
+//             mimeType: thumbnail?.mimetype!
+//         })
+
+//         fs.unlinkSync(thumbnail?.path!)
+
+//         if (error) {
+//             return next(new ErrorHandler('Failed while uploading a file', 400))
+//         }
+
+//         const course = await CourseModel.create({
+//             userId: req.user?._id,
+//             name,
+//             description,
+//             categories,
+//             price,
+//             estimatedPrice,
+//             thumbnail: {
+//                 path: path,
+//                 url: url
+//             },
+//             tags,
+//             benefits: { ...parsedBenefits },
+//             prerequisites: { ...parsedPrerequisites }
+//         });
+
+//         res.status(200).json({
+//             success: true,
+//             message: "Course created successfully!",
+//             course,
+//         });
+
+//     } catch (error: any) {
+//         return next(new ErrorHandler(error.message, 400));
+//     }
+// });
 
 // Update Course Detail
 export const updateCourse = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
@@ -206,26 +262,6 @@ export const getCourses = catchAsyncError(async (req: Request, res: Response, ne
     }
 });
 
-
-// Show all admin courses
-export const getAdminCourses = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
-    try {
-
-        const courses = await CourseModel.find({ userId: req.user?._id });
-
-        if (!courses) {
-            return next(new ErrorHandler("You do not have any courses available!", 404));
-        }
-
-        res.status(200).json({
-            success: true,
-            courses,
-        });
-
-    } catch (error: any) {
-        return next(new ErrorHandler(error.message, 400));
-    }
-});
 
 // Add review to a course
 export const addReviewToCourse = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
@@ -395,3 +431,42 @@ export const addQueReplyToCourseData = catchAsyncError(async (req: Request, res:
         return next(new ErrorHandler(error.message, 500));
     }
 });
+
+export const getAllAdminCourses = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?._id;
+
+        const courses = await CourseModel.find({ userId })
+
+        if (!courses) {
+            return next(new ErrorHandler("Course not found", 404))
+        }
+
+        return res.status(201).json({
+            success: true,
+            courses,
+        })
+    } catch (error: any) {
+        return next(new ErrorHandler(error.message, 500));
+    }
+})
+
+// // Show all admin courses
+// export const getAdminCourses = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+
+//         const courses = await CourseModel.find({ userId: req.user?._id });
+
+//         if (!courses) {
+//             return next(new ErrorHandler("You do not have any courses available!", 404));
+//         }
+
+//         res.status(200).json({
+//             success: true,
+//             courses,
+//         });
+
+//     } catch (error: any) {
+//         return next(new ErrorHandler(error.message, 400));
+//     }
+// });

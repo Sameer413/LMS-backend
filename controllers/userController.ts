@@ -194,3 +194,22 @@ export const getAllUsers = catchAsyncError(async (req: Request, res: Response, n
         return next(new ErrorHandler(error.message, 500));
     }
 });
+
+export const updateUserRole = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+    try {
+
+        const users = await userModel.find({});
+
+        if (!users) {
+            return next(new ErrorHandler("No Users found!", 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            users,
+        });
+
+    } catch (error: any) {
+        return next(new ErrorHandler(error.message, 500));
+    }
+});

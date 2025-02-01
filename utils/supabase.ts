@@ -69,11 +69,7 @@ export const deleteFile = async ({
 
         const tempUrl = urlParts[1].split('thumbnails/')
 
-        console.log(tempUrl);
-
         const { data, error } = await storage.from(bucket).remove([tempUrl[1]]);
-
-        console.log(data, error);
 
         if (error) {
             console.error('Error deleting file:', error.message);

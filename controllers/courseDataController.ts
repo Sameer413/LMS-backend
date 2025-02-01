@@ -145,10 +145,8 @@ export const deleteCourseData = catchAsyncError(async (req: Request, res: Respon
         if (!course) {
             return next(new ErrorHandler('Course not found', 404));
         }
-        console.log(courseDataId);
 
         const courseData = await CourseDataModel.findById(courseDataId);
-        console.log(courseData);
 
         const { data } = await deleteFile({
             bucket: 'thumbnails',

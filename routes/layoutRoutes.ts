@@ -1,11 +1,13 @@
 import express from 'express';
 import { isAuthenticated } from '../middleware/auth';
-import { addCategories, addFaqs, getLayout } from '../controllers/layoutController';
+import { createLayout, editLayout, getLayoutByType } from '../controllers/layoutController';
 
 const layoutRouter = express.Router();
 
-layoutRouter.post('/add-categories', isAuthenticated, addCategories);
-layoutRouter.post('/add-faq', isAuthenticated, addFaqs);
-layoutRouter.get('/get-layout', isAuthenticated, getLayout);
+layoutRouter.post("/create-layout", isAuthenticated, createLayout);
+
+layoutRouter.put("/edit-layout", isAuthenticated, editLayout);
+
+layoutRouter.get("/get-layout/:type", getLayoutByType);
 
 export default layoutRouter;

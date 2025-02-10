@@ -55,6 +55,7 @@ export const getCourseDataByCourseId = catchAsyncError(async (req: Request, res:
 // Add course data in a perticular course
 export const addCourseData = catchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
     try {
+
         const courseId = req.params.id;
 
         const {
@@ -64,32 +65,9 @@ export const addCourseData = catchAsyncError(async (req: Request, res: Response,
             videoUrl,
             videoSection,
             videoLength,
-            links,
-            suggestion,
-            questions,
+            videoPath,
+            // links,
         } = req.body;
-
-        const videoThumbnail = req.file;
-
-        const videoThumbnailBuffer = fs.readFileSync(videoThumbnail?.path!)
-
-
-        const { error, url, path } = await uploadFile({
-            bucket: 'thumbnails',
-            // fileName: `${videoThumbnail?.filename.split('.')[0]}-${title
-            //     .replace(/\s+/g, '_')
-            //     .toLowerCase()
-            //     }.${videoThumbnail?.filename.split('.').pop()}`,
-            fileName: generateFileName(videoThumbnail!.filename, title),
-            file: videoThumbnailBuffer,
-            mimeType: videoThumbnail?.mimetype!
-        });
-
-        fs.unlinkSync(videoThumbnail?.path!)
-
-        if (error) {
-            return next(new ErrorHandler('Failed while uploading a file', 400))
-        }
 
         const course = await CourseModel.findById(courseId);
 
@@ -102,12 +80,13 @@ export const addCourseData = catchAsyncError(async (req: Request, res: Response,
             title: title,
             description: description,
             videoThumbnail: {
-                url: url,
-                path: path,
+                url: 'url',
+                path: 'path',
             },
             videoSection: videoSection || '',
             videoLength: videoLength,
             videoUrl: videoUrl,
+            videoPath: videoPath,
             links: [{
                 title: "tutul",
                 url: "url"

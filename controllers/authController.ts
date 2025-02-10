@@ -98,7 +98,6 @@ export const signIn = catchAsyncError(async (req: Request, res: Response, next: 
         res.status(200)
             .cookie('access_token', accessToken, {
                 expires: new Date(Date.now() + 3 * 60 * 1000),
-                // expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
                 // httpOnly: true,
                 // secure: true,
                 // sameSite: 'none'
@@ -191,8 +190,7 @@ export const refreshToken = catchAsyncError(async (req: Request, res: Response, 
         res.cookie("access_token", accessToken, {
             // httpOnly: true,
             // sameSite: "strict",
-            // maxAge: 3 * 60 * 1000
-            maxAge: 2 * 24 * 60 * 60 * 1000
+            maxAge: 3 * 60 * 1000
         });
         res.cookie("refresh_token", newRefreshToken, {
             // httpOnly: true,

@@ -6,11 +6,12 @@ export interface ICourseData extends Document {
     courseId: object;
     title: string;
     description: string | null;
-    videoThumbnail: {
+    videoThumbnail?: {
         path: string;
         url: string;
     };
     videoUrl?: string;
+    videoPath?: string;
     videoSection: string | null;
     videoLength: number;
     links?: ILink[];
@@ -39,6 +40,14 @@ const courseDataSchema = new Schema<ICourseData>({
     videoSection: {
         type: String,
         default: null
+    },
+    videoPath: {
+        type: String,
+        required: true,
+    },
+    videoUrl: {
+        type: String,
+        required: true
     },
     videoLength: {
         type: Number,

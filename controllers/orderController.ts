@@ -77,18 +77,25 @@ export const updateOrder = catchAsyncError(async (req: Request, res: Response, n
     try {
         const { paymentId, orderId, status } = req.body;
         const order = await OrderModel.findById(orderId);
+        console.log(paymentId);
 
         if (!order) {
             return next(new ErrorHandler('Order not found', 404));
         }
         // req.user?._id ||
-        const user = await userModel.findById('67889683c30e352db02e9df5')
+        const user = await userModel.findById('67a7621a567f3c0e96a57118')
+
+        if (!user) {
+            return next(new ErrorHandler('User not found', 404))
+        }
 
         // Update the order details
-        order.paymentId = paymentId;
+        order.paymentId = paymentId.toString();
+        order.markModified("paymentId")
         order.status = status || 'captured'; // Default to 'captured' if not provided
 
         await order.save();
+        console.log("here");
 
         user?.courses.push({ courseId: order.courseId });
 
